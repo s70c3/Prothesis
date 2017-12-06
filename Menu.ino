@@ -17,6 +17,8 @@ const char value[4][4]
   {'7', '8', '9', 'C'},
   {'#', '0', '*', 'D'}
 };
+
+const int presets[4][3]{{10, 10, 170}, {20, 10, 180}, {10, 10, 90}, {10, 20, 160}};
 // двойной массив, обозначающий кнопку
 
 //States for the menu.
@@ -34,6 +36,7 @@ int start = 10;
 int end = 160;
 int pos;
 
+int pre_pos = 0;
 void setup() {
   //Set the characters and column numbers.
   lcd.begin();
@@ -95,12 +98,11 @@ void matrix2 () // создаем функцию для чтения кнопо�
       {
         b = value[i - 1][j - 1];
         if (b == '*') {
-          pos = 0;
-          grad = 0;
           lcd.clear();
           lcd.print("Stop");
           delay(1000);
           isStarted = false;
+          mainMenu();
         }
   
       }
@@ -114,14 +116,14 @@ void rotate() {
   matrix2();
   Serial.println(pos);
   goservo.write(pos);
-  delay(50);
- // delay(speed); // ждём 15ms пока серва займёт новое положение
+ // delay(50);
+  delay(speed); // ждём 15ms пока серва займёт новое положение
   pos = pos + grad;
   // меняет значение затухания на аналогичное с противоположным знаком при граничных значениях:
 
-  if (pos <= 0) {
+  if (pos <= start) {
     grad = -grad ;
-    pos = 0;
+    pos = start;
   }
   if (pos >= end) {
     grad = -grad ;
@@ -147,8 +149,8 @@ void mainMenu() {
   if (currentMenuItem <= 1) {
     currentMenuItem = 1;
   }
-  if (currentMenuItem > 4) {
-    currentMenuItem = 4;
+  if (currentMenuItem > 5) {
+    currentMenuItem = 5;
   }
 
 
@@ -205,6 +207,21 @@ void mainMenu() {
       if (end < 0) end = 0;
       selectMenu(currentMenuItem);
     }
+     if (!isMain && currentMenuItem == 4 && state == 2) {
+      pre_pos -= 1;
+      if (pre_pos < 0) pre_pos = 0;
+      selectMenu(currentMenuItem);
+    }
+    if (!isMain && currentMenuItem == 4 && state == 8) {
+      pre_pos += 1;
+      if (pre_pos > 3) pre_pos = 3;
+      selectMenu(currentMenuItem);
+    }
+      if (!isMain && currentMenuItem == 4 && state == 5) {
+     speed  = presets[pre_pos][0];
+     start  = presets[pre_pos][1];
+     end  = presets[pre_pos][2];
+    }
     //Save the last State to compare.
     lastState = state;
   }
@@ -230,10 +247,13 @@ void displayMenu(int x) {
       clearPrintTitle();
       lcd.print ("-> Select end");
       break;
-    case 4:
+     case 4:
+     clearPrintTitle();
+     lcd.print("-> Presets");
+     break;
+    case 5:
       clearPrintTitle();
       lcd.print ("-> Start!");
-
       break;
   }
 }
@@ -248,7 +268,7 @@ void clearPrintTitle() {
 
 //Show the selection on Screen.
 void selectMenu(int x) {
-
+Serial.print(x);
   switch (x) {
     case 1:
       isMain = false;
@@ -276,11 +296,24 @@ void selectMenu(int x) {
       //Call the function that belongs to Option 3
       break;
     case 4:
+      isMain=false;
+      lcd.clear();
+      lcd.print("Speed Start End");
+      lcd.setCursor(0, 1);
+      lcd.print(presets[pre_pos][0]);
+      lcd.setCursor(5, 1);
+      lcd.print(presets[pre_pos][1]);
+      lcd.setCursor(10, 1);
+      lcd.print(presets[pre_pos][2]);
+      break;
+    case 5:
       isStarted = true;
       pos = start;
       lcd.clear();
-      //      lcd.printf("Working. Speed: %d Start: %d End: %d");
       lcd.print("Working");
+      lcd.setCursor(0,1);
+      lcd.print("For stop press *");
 
   }
 }
+
