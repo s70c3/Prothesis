@@ -1,5 +1,8 @@
 #include <LiquidCrystal_I2C.h>
 #include <Servo.h>
+#include <MsTimer2.h>//Библиотека прерываний по таймеру2
+#include <EEPROM.h>
+
 Servo goservo;
 
 
@@ -18,7 +21,7 @@ const char value[4][4]
   {'#', '0', '*', 'D'}
 };
 
-const int presets[4][3]{{10, 10, 170}, {20, 10, 180}, {10, 10, 90}, {10, 20, 160}};
+const int presets[4][3] {{10, 10, 170}, {20, 10, 180}, {10, 10, 90}, {10, 20, 160}};
 // двойной массив, обозначающий кнопку
 
 //States for the menu.
@@ -34,9 +37,14 @@ int grad = 1;
 int speed = 10;
 int start = 10;
 int end = 160;
+int time = 10;
 int pos;
 
 int pre_pos = 0;
+
+long totalSek = 0;
+
+byte preset_count;
 void setup() {
   //Set the characters and column numbers.
   lcd.begin();
@@ -59,6 +67,11 @@ void setup() {
 
   goservo.attach(13);
   Serial.begin(9600); // открываем Serial порт
+
+preset_count=EEPROM.read(0);
+  MsTimer2::set(1000, to_Timer); // Здесь задаем период 1 секунда
+  MsTimer2::start();//Стартуем, теперь таймер запущен
+
 }
 
 void loop() {
@@ -71,6 +84,12 @@ void loop() {
   }
 }
 
+void to_Timer()//Функция Таймер, он считает и пишет на экран время которое прошло
+{
+  totalSek++;//Сюда попадаем каждую секунду и приплюсовываем одну секунду
+  //Далее рассчитываем часы минуты секунды и записываем на экран
+
+}
 
 void matrix () // создаем функцию для чтения кнопок
 {
@@ -99,12 +118,11 @@ void matrix2 () // создаем функцию для чтения кнопо�
         b = value[i - 1][j - 1];
         if (b == '*') {
           lcd.clear();
-          lcd.print("Stop");
+          lcd.print("Stopped.");
           delay(1000);
           isStarted = false;
-          mainMenu();
         }
-  
+
       }
     }
     digitalWrite(PinOut[i - 1], HIGH); // подаём обратно высокий уровень
@@ -116,8 +134,7 @@ void rotate() {
   matrix2();
   Serial.println(pos);
   goservo.write(pos);
- // delay(50);
-  delay(speed); // ждём 15ms пока серва займёт новое положение
+  delay(41 - speed); // ждём 15ms пока серва займёт новое положение
   pos = pos + grad;
   // меняет значение затухания на аналогичное с противоположным знаком при граничных значениях:
 
@@ -129,7 +146,16 @@ void rotate() {
     grad = -grad ;
     pos = end;
   }
- 
+
+  lcd.setCursor(11, 0);
+  lcd.print((totalSek % 3600) / 60); //Далее минуты
+  lcd.print(":");
+  lcd.print((totalSek % 3600) % 60); //Далее секунды
+
+  if ((totalSek % 3600) / 60 > time) {
+    lcd.clear();
+    lcd.print("Execrcise ended");
+  }
 
 
 }
@@ -207,20 +233,37 @@ void mainMenu() {
       if (end < 0) end = 0;
       selectMenu(currentMenuItem);
     }
-     if (!isMain && currentMenuItem == 4 && state == 2) {
+    if (!isMain && currentMenuItem == 4 && state == 2) {
+      time += 1;
+      if (time > 20) time = 20;
+      selectMenu(currentMenuItem);
+    }
+    if (!isMain && currentMenuItem == 4 && state == 8) {
+      time -= 1;
+      if (time < 1) time = 1;
+      selectMenu(currentMenuItem);
+    }
+    if (!isMain && currentMenuItem == 5 && state == 2) {
       pre_pos -= 1;
       if (pre_pos < 0) pre_pos = 0;
       selectMenu(currentMenuItem);
     }
-    if (!isMain && currentMenuItem == 4 && state == 8) {
+    if (!isMain && currentMenuItem == 5 && state == 8) {
       pre_pos += 1;
-      if (pre_pos > 3) pre_pos = 3;
+      if (pre_pos > present_count) pre_pos = preset_count;
       selectMenu(currentMenuItem);
     }
-      if (!isMain && currentMenuItem == 4 && state == 5) {
-     speed  = presets[pre_pos][0];
-     start  = presets[pre_pos][1];
-     end  = presets[pre_pos][2];
+    if (!isMain && currentMenuItem == 7 && state == 5) {
+      speed  = EERPOM.read(pre_pos*4+1);
+      start  = EERPOM.read(pre_pos*4+2);
+      end  = EERPOM.read(pre_pos*4+3);
+      time  = EERPOM.read(pre_pos*4+4);
+    }
+    if (!isMain && currentMenuItem == 7 && state == 5) {
+      EEPROM.write(speed);
+      EEPROM.write(start);
+      EEPROM.write(end);
+       EEPROM.write(time);
     }
     //Save the last State to compare.
     lastState = state;
@@ -247,13 +290,21 @@ void displayMenu(int x) {
       clearPrintTitle();
       lcd.print ("-> Select end");
       break;
-     case 4:
-     clearPrintTitle();
-     lcd.print("-> Presets");
-     break;
+    case 4:
+      clearPrintTitle();
+      lcd.print ("-> Select time");
+      break;
     case 5:
       clearPrintTitle();
-      lcd.print ("-> Start!");
+      lcd.print("-> Presets");
+      break;
+    case 6:
+      clearPrintTitle();
+      lcd.print ("-> Start");
+      break;
+    case 7:
+      clearPrintTitle();
+      lcd.print ("-> Save");
       break;
   }
 }
@@ -268,7 +319,7 @@ void clearPrintTitle() {
 
 //Show the selection on Screen.
 void selectMenu(int x) {
-Serial.print(x);
+  Serial.print(x);
   switch (x) {
     case 1:
       isMain = false;
@@ -296,23 +347,47 @@ Serial.print(x);
       //Call the function that belongs to Option 3
       break;
     case 4:
-      isMain=false;
-      lcd.clear();
-      lcd.print("Speed Start End");
-      lcd.setCursor(0, 1);
-      lcd.print(presets[pre_pos][0]);
-      lcd.setCursor(5, 1);
-      lcd.print(presets[pre_pos][1]);
+      isMain = false;
+      clearPrintTitle();
+      lcd.print ("Time(min): ");
       lcd.setCursor(10, 1);
-      lcd.print(presets[pre_pos][2]);
+      lcd.print(time);
+      //Call the function that belongs to Option 3
       break;
     case 5:
+      isMain = false;
+      lcd.clear();
+      lcd.print("SpeedStartEndTime");
+      lcd.setCursor(0, 1);
+      lcd.print(EERPOM.read(pre_pos*4+1);;
+      lcd.setCursor(4, 1);
+      lcd.print(EERPOM.read(pre_pos*4+2));
+      lcd.setCursor(8, 1);
+      lcd.print(EERPOM.read(pre_pos*4+3));
+      lcd.setCursor(12, 1);
+      lcd.print(EERPOM.read(pre_pos*4+4));
+      break;
+    case 6:
       isStarted = true;
       pos = start;
+      totalSek = 0;
       lcd.clear();
-      lcd.print("Working");
-      lcd.setCursor(0,1);
+      lcd.print("Progress");
+      lcd.setCursor(0, 1);
       lcd.print("For stop press *");
+    case 7:
+      isMain = false;
+      lcd.clear();
+      lcd.print("SpeedStartEndTime");
+      lcd.setCursor(0, 1);
+      lcd.print(speed);
+      lcd.setCursor(4, 1);
+      lcd.print(start);
+      lcd.setCursor(8, 1);
+      lcd.print(end);
+       lcd.setCursor(12, 1);
+      lcd.print(time);
+      break;
 
   }
 }
