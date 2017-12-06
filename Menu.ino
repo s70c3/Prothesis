@@ -253,7 +253,7 @@ void mainMenu() {
       if (pre_pos > present_count) pre_pos = preset_count;
       selectMenu(currentMenuItem);
     }
-    if (!isMain && currentMenuItem == 7 && state == 5) {
+    if (!isMain && currentMenuItem == 5 && state == 5) {
       speed  = EERPOM.read(pre_pos*4+1);
       start  = EERPOM.read(pre_pos*4+2);
       end  = EERPOM.read(pre_pos*4+3);
