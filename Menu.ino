@@ -45,7 +45,10 @@ int pre_pos = 0;
 long totalSek = 0;
 
 byte preset_count;
+
 void setup() {
+
+
   //Set the characters and column numbers.
   lcd.begin();
   //Print default title.
@@ -132,7 +135,6 @@ void matrix2 () // создаем функцию для чтения кнопо�
 
 void rotate() {
   matrix2();
-  Serial.println(pos);
   goservo.write(pos);
   delay(41 - speed); // ждём 15ms пока серва займёт новое положение
   pos = pos + grad;
@@ -147,7 +149,7 @@ void rotate() {
     pos = end;
   }
 
-  lcd.setCursor(11, 0);
+  lcd.setCursor(11, 1);
   lcd.print((totalSek % 3600) / 60); //Далее минуты
   lcd.print(":");
   lcd.print((totalSek % 3600) % 60); //Далее секунды
@@ -175,7 +177,7 @@ void mainMenu() {
   if (currentMenuItem <= 1) {
     currentMenuItem = 1;
   }
-  if (currentMenuItem > 5) {
+  if (currentMenuItem > 7) {
     currentMenuItem = 5;
   }
 
@@ -250,20 +252,23 @@ void mainMenu() {
     }
     if (!isMain && currentMenuItem == 5 && state == 8) {
       pre_pos += 1;
-      if (pre_pos > present_count) pre_pos = preset_count;
+      if (pre_pos > preset_count-1) pre_pos = preset_count-1;
       selectMenu(currentMenuItem);
     }
     if (!isMain && currentMenuItem == 5 && state == 5) {
-      speed  = EERPOM.read(pre_pos*4+1);
-      start  = EERPOM.read(pre_pos*4+2);
-      end  = EERPOM.read(pre_pos*4+3);
-      time  = EERPOM.read(pre_pos*4+4);
+      Serial.println(pre_pos);
+      speed  = EEPROM.read(pre_pos*4+1);
+      start  = EEPROM.read(pre_pos*4+2);
+      end  = EEPROM.read(pre_pos*4+3);
+      time  = EEPROM.read(pre_pos*4+4);
     }
     if (!isMain && currentMenuItem == 7 && state == 5) {
-      EEPROM.write(speed);
-      EEPROM.write(start);
-      EEPROM.write(end);
-       EEPROM.write(time);
+      Serial.println(preset_count);
+      EEPROM.write(preset_count*4+1, speed);
+      EEPROM.write(preset_count*4+2, start);
+      EEPROM.write(preset_count*4+3,end);
+      EEPROM.write(preset_count*4+4, time);
+      EEPROM.write(0, preset_count+1);
     }
     //Save the last State to compare.
     lastState = state;
@@ -319,7 +324,6 @@ void clearPrintTitle() {
 
 //Show the selection on Screen.
 void selectMenu(int x) {
-  Serial.print(x);
   switch (x) {
     case 1:
       isMain = false;
@@ -356,16 +360,17 @@ void selectMenu(int x) {
       break;
     case 5:
       isMain = false;
+      preset_count=EEPROM.read(0);
       lcd.clear();
       lcd.print("SpeedStartEndTime");
       lcd.setCursor(0, 1);
-      lcd.print(EERPOM.read(pre_pos*4+1);;
-      lcd.setCursor(4, 1);
-      lcd.print(EERPOM.read(pre_pos*4+2));
+      lcd.print(EEPROM.read(pre_pos*4+1));
+      lcd.setCursor(3, 1);
+      lcd.print(EEPROM.read(pre_pos*4+2));
       lcd.setCursor(8, 1);
-      lcd.print(EERPOM.read(pre_pos*4+3));
+      lcd.print(EEPROM.read(pre_pos*4+3));
       lcd.setCursor(12, 1);
-      lcd.print(EERPOM.read(pre_pos*4+4));
+      lcd.print(EEPROM.read(pre_pos*4+4));
       break;
     case 6:
       isStarted = true;
@@ -381,11 +386,11 @@ void selectMenu(int x) {
       lcd.print("SpeedStartEndTime");
       lcd.setCursor(0, 1);
       lcd.print(speed);
-      lcd.setCursor(4, 1);
+      lcd.setCursor(3, 1);
       lcd.print(start);
       lcd.setCursor(8, 1);
       lcd.print(end);
-       lcd.setCursor(12, 1);
+      lcd.setCursor(12, 1);
       lcd.print(time);
       break;
 
