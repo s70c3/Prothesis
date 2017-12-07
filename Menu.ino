@@ -14,13 +14,18 @@ int PinIn[4] {9, 8, 7, 6}; // пины входа
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 
+//const char value[4][4]
+//{ {'1', '2', '3', 'A'},
+//  {'4', '5', '6', 'B'},
+//  {'7', '8', '9', 'C'},
+//  {'#', '0', '*', 'D'}
+//};
 const char value[4][4]
-{ {'1', '2', '3', 'A'},
-  {'4', '5', '6', 'B'},
-  {'7', '8', '9', 'C'},
-  {'#', '0', '*', 'D'}
+{ {'D', '#', '0', '*'},
+  {'C', '9', '8', '7'},
+  {'B', '6', '5', '4'},
+  {'A', '3', '2', '1'}
 };
-
 const int presets[4][3] {{10, 10, 170}, {20, 10, 180}, {10, 10, 90}, {10, 20, 160}};
 // двойной массив, обозначающий кнопку
 
@@ -40,9 +45,11 @@ int end = 160;
 int time = 10;
 int pos;
 
+int temp;
 int pre_pos = 0;
 
 long totalSek = 0;
+long tempSek = 0;
 
 byte preset_count;
 
@@ -71,7 +78,7 @@ void setup() {
   goservo.attach(13);
   Serial.begin(9600); // открываем Serial порт
 
-preset_count=EEPROM.read(0);
+  preset_count = EEPROM.read(0);
   MsTimer2::set(1000, to_Timer); // Здесь задаем период 1 секунда
   MsTimer2::start();//Стартуем, теперь таймер запущен
 
@@ -103,7 +110,9 @@ void matrix () // создаем функцию для чтения кнопок
     {
       if (digitalRead(PinIn[j - 1]) == LOW) // если один из указанных портов входа равен 0, то..
       {
+        Serial.println(value[i - 1][j - 1]);
         state = value[i - 1][j - 1] - 48;
+
       }
     }
     digitalWrite(PinOut[i - 1], HIGH); // подаём обратно высокий уровень
@@ -124,6 +133,24 @@ void matrix2 () // создаем функцию для чтения кнопо�
           lcd.print("Stopped.");
           delay(1000);
           isStarted = false;
+        }
+         if (b == '#') {
+          lcd.clear();
+          lcd.print("Paused. For continue press 5.");
+          
+          if(grad) temp = grad;
+          grad = 0;
+          isStarted = true;
+          if(totalSek) tempSek = totalSek;
+          totalSek = 0;
+        }
+        if (b == '5') {
+          lcd.clear();
+          lcd.print("Progress...");
+         
+          grad = temp;
+          totalSek = tempSek;
+          isStarted = true;
         }
 
       }
@@ -154,9 +181,11 @@ void rotate() {
   lcd.print(":");
   lcd.print((totalSek % 3600) % 60); //Далее секунды
 
-  if ((totalSek % 3600) / 60 > time) {
+  if ((totalSek % 3600) / 60 >= time) {
     lcd.clear();
     lcd.print("Execrcise ended");
+    isStarted = false;
+    mainMenu();
   }
 
 
@@ -252,23 +281,23 @@ void mainMenu() {
     }
     if (!isMain && currentMenuItem == 5 && state == 8) {
       pre_pos += 1;
-      if (pre_pos > preset_count-1) pre_pos = preset_count-1;
+      if (pre_pos > preset_count - 1) pre_pos = preset_count - 1;
       selectMenu(currentMenuItem);
     }
     if (!isMain && currentMenuItem == 5 && state == 5) {
       Serial.println(pre_pos);
-      speed  = EEPROM.read(pre_pos*4+1);
-      start  = EEPROM.read(pre_pos*4+2);
-      end  = EEPROM.read(pre_pos*4+3);
-      time  = EEPROM.read(pre_pos*4+4);
+      speed  = EEPROM.read(pre_pos * 4 + 1);
+      start  = EEPROM.read(pre_pos * 4 + 2);
+      end  = EEPROM.read(pre_pos * 4 + 3);
+      time  = EEPROM.read(pre_pos * 4 + 4);
     }
     if (!isMain && currentMenuItem == 7 && state == 5) {
       Serial.println(preset_count);
-      EEPROM.write(preset_count*4+1, speed);
-      EEPROM.write(preset_count*4+2, start);
-      EEPROM.write(preset_count*4+3,end);
-      EEPROM.write(preset_count*4+4, time);
-      EEPROM.write(0, preset_count+1);
+      EEPROM.write(preset_count * 4 + 1, speed);
+      EEPROM.write(preset_count * 4 + 2, start);
+      EEPROM.write(preset_count * 4 + 3, end);
+      EEPROM.write(preset_count * 4 + 4, time);
+      EEPROM.write(0, preset_count + 1);
     }
     //Save the last State to compare.
     lastState = state;
@@ -360,17 +389,17 @@ void selectMenu(int x) {
       break;
     case 5:
       isMain = false;
-      preset_count=EEPROM.read(0);
+      preset_count = EEPROM.read(0);
       lcd.clear();
       lcd.print("SpeedStartEndTime");
       lcd.setCursor(0, 1);
-      lcd.print(EEPROM.read(pre_pos*4+1));
+      lcd.print(EEPROM.read(pre_pos * 4 + 1));
       lcd.setCursor(3, 1);
-      lcd.print(EEPROM.read(pre_pos*4+2));
+      lcd.print(EEPROM.read(pre_pos * 4 + 2));
       lcd.setCursor(8, 1);
-      lcd.print(EEPROM.read(pre_pos*4+3));
+      lcd.print(EEPROM.read(pre_pos * 4 + 3));
       lcd.setCursor(12, 1);
-      lcd.print(EEPROM.read(pre_pos*4+4));
+      lcd.print(EEPROM.read(pre_pos * 4 + 4));
       break;
     case 6:
       isStarted = true;
@@ -379,7 +408,8 @@ void selectMenu(int x) {
       lcd.clear();
       lcd.print("Progress");
       lcd.setCursor(0, 1);
-      lcd.print("For stop press *");
+      
+      break;
     case 7:
       isMain = false;
       lcd.clear();
