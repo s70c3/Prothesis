@@ -51,6 +51,11 @@ int pre_pos = 0;
 long totalSek = 0;
 long tempSek = 0;
 
+int redPin = 24;
+int greenPin = 23;
+
+int bluePin = 22;
+
 byte preset_count;
 
 void setup() {
@@ -82,6 +87,13 @@ void setup() {
   MsTimer2::set(1000, to_Timer); // Здесь задаем период 1 секунда
   MsTimer2::start();//Стартуем, теперь таймер запущен
 
+  pinMode(redPin, OUTPUT);
+  pinMode(greenPin, OUTPUT);
+  pinMode(bluePin, OUTPUT);
+
+  analogWrite(redPin, 0);
+  analogWrite(greenPin, 255);
+  analogWrite(bluePin, 0);
 }
 
 void loop() {
@@ -134,20 +146,20 @@ void matrix2 () // создаем функцию для чтения кнопо�
           delay(1000);
           isStarted = false;
         }
-         if (b == '#') {
+        if (b == '#') {
           lcd.clear();
           lcd.print("Paused. For continue press 5.");
-          
-          if(grad) temp = grad;
+
+          if (grad) temp = grad;
           grad = 0;
           isStarted = true;
-          if(totalSek) tempSek = totalSek;
+          if (totalSek) tempSek = totalSek;
           totalSek = 0;
         }
         if (b == '5') {
           lcd.clear();
           lcd.print("Progress...");
-         
+
           grad = temp;
           totalSek = tempSek;
           isStarted = true;
@@ -408,7 +420,7 @@ void selectMenu(int x) {
       lcd.clear();
       lcd.print("Progress");
       lcd.setCursor(0, 1);
-      
+
       break;
     case 7:
       isMain = false;
